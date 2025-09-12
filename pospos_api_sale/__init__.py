@@ -2,7 +2,6 @@ import os
 import time
 import logging
 from datetime import datetime
-
 from flask import Flask, jsonify, request, Blueprint
 from flask_cors import CORS
 import requests
