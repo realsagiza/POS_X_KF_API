@@ -1,0 +1,84 @@
+{
+  "success": true,
+  "data": [
+    {
+      "denom": "1000.00",
+      "value": 1000,
+      "qty": 1,
+      "inStacker": 2,
+      "type": 1
+    },
+    {
+      "denom": "500.00",
+      "value": 500,
+      "qty": 50,
+      "inStacker": 50,
+      "type": 1
+    },
+    {
+      "denom": "100.00",
+      "value": 100,
+      "qty": 50,
+      "inStacker": 50,
+      "type": 1
+    },
+    {
+      "denom": "50.00",
+      "value": 50,
+      "qty": 2,
+      "inStacker": 20,
+      "type": 1
+    },
+    {
+      "denom": "20.00",
+      "value": 20,
+      "qty": 9,
+      "inStacker": 30,
+      "type": 1
+    },
+    {
+      "denom": "10.00",
+      "value": 10,
+      "qty": 50,
+      "inStacker": 50,
+      "type": 1
+    },
+    {
+      "denom": "5.00",
+      "value": 5,
+      "qty": 50,
+      "inStacker": 500,
+      "type": 1
+    },
+    {
+      "denom": "2.00",
+      "value": 2,
+      "qty": 50,
+      "inStacker": 50,
+      "type": 1
+    },
+    {
+      "denom": "1.00",
+      "value": 1,
+      "qty": 50,
+      "inStacker": 90,
+      "type": 2
+    },
+    {
+      "denom": "0.50",
+      "value": 0.5,
+      "qty": 0,
+      "inStacker": 0,
+      "type": 2
+    },
+    {
+      "denom": "0.25",
+      "value": 0.25,
+      "qty": 0,
+      "inStacker": 0,
+      "type": 2
+    }
+  ],
+  "messages": []
+}
+

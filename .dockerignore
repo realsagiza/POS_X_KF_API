@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+.git
+.gitignore
+*.log
+node_modules
+dist
+build
+*.swp
+*.swo
+.DS_Store
+
+

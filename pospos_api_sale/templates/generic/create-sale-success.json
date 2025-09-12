@@ -1,0 +1,14 @@
+{
+    "success": true,
+    "message": "Sale created successfully",
+    "wipId": 30025,
+    "data": {
+        "id": 30025,
+        "reqID": "SAL_req-123456",        
+        "posID": "POS001",
+        "machineID": "673c45f04d7ba05da87e5c35",
+        "amount": 1000,
+        "status": "processing"     
+    }
+}
+

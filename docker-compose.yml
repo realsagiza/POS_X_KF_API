@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  pospos_api_sale:
+    container_name: pospos_api_sale
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5115:5115"
+    environment:
+      - PORT=5115
+      - UPSTREAM_BASE=http://192.168.1.33:5000
+    restart: unless-stopped
+
+
