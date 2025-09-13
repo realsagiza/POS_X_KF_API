@@ -3,20 +3,16 @@
 Flask API ที่เรียกใช้ REST_API_CI แล้วตอบกลับทรง Generic JSON พร้อม Docker
 
 ### การแมป API
-- POST `/api/v1/order` → ยิง `REST_API_CI /cashin` แบบ synchronous (รอผล) แล้วตอบกลับทรง `generic/create-sale-success.json` โดย
+- POST `/api/v1/order` → ยิง `REST_API_CI /cashin` แบบ asynchronous (ไม่รอผล) แล้วตอบกลับทรง `generic/create-sale-success.json` ทันทีภายใน ~1–2 วินาที โดย
   - `data.amount` = จำนวนเงินที่ client ส่งมาในคำสั่งซื้อ
-  - `data.status` =
-    - `succeeded` เมื่อ upstream ตอบ 2xx และ parse ยอดได้ (หรือไม่ได้ก็ถือว่าสำเร็จ)
-    - `failed` เมื่อ upstream ตอบ non-2xx (ส่ง HTTP 502)
-    - `timeout` เมื่อครบเวลา `HTTP_TIMEOUT_SECONDS` (ดีฟอลต์ 300 วินาที, ส่ง HTTP 504)
-    - `error` เมื่อเกิดข้อผิดพลาดอื่น (ส่ง HTTP 500)
-- GET `/api/v1/status` → ตอบทรง `generic/get-by-id-success.json` โดย
+  - `data.status` = `processing` เสมอ ณ ตอนสร้างออเดอร์ (ผลลัพธ์จริงจะทราบผ่าน `/api/v1/status`)
+- GET `/api/v1/status` → Poll เพื่อตรวจสอบผล cash-in และตอบทรง `generic/get-by-id-success.json` โดย
   - `data.amount` = ยอดจาก `POST /api/v1/order` (ไม่ใช้ socket)
   - `data.cashin` = ค่าที่ parse ได้จาก response ของ `POST {UPSTREAM_BASE}/cashin` เป็นหลัก โดยคำนวณจากผลรวมของ `Cash` ที่ `type == "1"` ดังนี้
     - รวมทุก `Denomination`: `sum( (fv * sum(Piece.value)) ) / 100` หน่วยเป็นบาท (เนื่องจาก `fv` เป็นหน่วยสตางค์)
     - ถ้าไม่มี `Cash` ให้ fallback ไปใช้ `Amount[0].value / 100`
     - ถ้า parse ไม่ได้ ให้ fallback ไปใช้ `GET {UPSTREAM_BASE}/socket/latest` → `inserted_amount_baht`
-  - `data.status` = `succeeded` หนึ่งครั้งหลังได้รับ response `/cashin` แล้วเคลียร์สถานะ, มิฉะนั้นเป็น `processing`; `cancelled` เมื่อยกเลิก
+  - `data.status` = `succeeded` หนึ่งครั้งหลังได้รับ response `/cashin` (ทำงานเบื้องหลัง) แล้วเคลียร์สถานะ, มิฉะนั้นเป็น `processing`; `cancelled` เมื่อยกเลิก
 - PATCH `/api/v1/cancel/:id` หรือ `/api/v1/cancel` → (พารามิเตอร์ `:id` เป็น optional) เรียก `REST_API_CI /cashin_cancel` แล้วตอบกลับแบบ `generic/cancel-sale-success.json`
 - GET `/api/v1/balances` → เรียก `REST_API_CI /inventory` แล้ว map เป็น `generic/get-inventory-success.json` (type 3 → qty, type 4 → inStacker)
 

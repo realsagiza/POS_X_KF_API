@@ -384,62 +384,14 @@ def create_order():
         # mark order start time
         last_order_created_at = time.time()
 
-        # Call upstream /cashin synchronously and wait for result
-        url = f"{UPSTREAM_BASE}/cashin"
-        payload = {"amount": order_amount}
-        status_text = "processing"
-        http_status = 200
-        try:
-            logger.info("Calling upstream /cashin (sync) url=%s payload=%s timeout_s=%s", url, payload, HTTP_TIMEOUT_SECONDS)
-            start_ts = time.time()
-            resp = requests.post(url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
-            duration_ms = (time.time() - start_ts) * 1000.0
-            content_type = resp.headers.get("Content-Type", "")
-            try:
-                body_text = resp.text
-                if body_text and len(body_text) > 2000:
-                    body_text = body_text[:2000] + "...(truncated)"
-            except Exception:
-                body_text = "<unreadable>"
-            logger.info(
-                "Upstream /cashin (sync) responded status=%s duration_ms=%.1f content_type=%s body=%s",
-                resp.status_code,
-                duration_ms,
-                content_type,
-                body_text,
-            )
+        # Submit upstream /cashin asynchronously and return immediately
+        _submit_cashin_async(order_amount)
 
-            if resp.ok:
-                try:
-                    resp_json = resp.json()
-                except Exception:
-                    resp_json = None
-                if isinstance(resp_json, dict):
-                    amount_baht = _extract_cashin_amount_baht(resp_json)
-                    if amount_baht > 0:
-                        last_cashin_received_baht = amount_baht
-                        logger.info("Parsed cashin amount from upstream response: %s THB", amount_baht)
-                cashin_ack_received = True
-                status_text = "succeeded"
-                http_status = 200
-            else:
-                logger.warning("Upstream /cashin non-OK status (sync): %s", resp.status_code)
-                status_text = "failed"
-                http_status = 502
-        except requests.Timeout:
-            logger.warning("Upstream /cashin timed out after %ss", HTTP_TIMEOUT_SECONDS)
-            status_text = "timeout"
-            http_status = 504
-        except Exception as exc:
-            logger.exception("Upstream /cashin failed (sync): %s", exc)
-            status_text = "error"
-            http_status = 500
-
-        # Load generic template and adjust amount/status
+        # Load generic template and respond as processing
         response = _load_generic_template("create-sale-success.json")
         response["data"]["amount"] = int(order_amount)
-        response["data"]["status"] = status_text
-        return jsonify(response), http_status
+        response["data"]["status"] = "processing"
+        return jsonify(response), 200
     except Exception as exc:  # pragma: no cover
         logger.exception("Failed to create sale")
         return jsonify({"success": False, "error": "Failed to create sale", "message": str(exc)}), 500
