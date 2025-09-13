@@ -17,7 +17,7 @@ Flask API ที่เรียกใช้ REST_API_CI แล้วตอบก
     - ถ้าไม่มี `Cash` ให้ fallback ไปใช้ `Amount[0].value / 100`
     - ถ้า parse ไม่ได้ ให้ fallback ไปใช้ `GET {UPSTREAM_BASE}/socket/latest` → `inserted_amount_baht`
   - `data.status` = `succeeded` หนึ่งครั้งหลังได้รับ response `/cashin` แล้วเคลียร์สถานะ, มิฉะนั้นเป็น `processing`; `cancelled` เมื่อยกเลิก
-- PATCH `/api/v1/cancel/:id` → เรียก `REST_API_CI /cashin_cancel` แล้วตอบกลับแบบ `generic/cancel-sale-success.json`
+- PATCH `/api/v1/cancel/:id` หรือ `/api/v1/cancel` → (พารามิเตอร์ `:id` เป็น optional) เรียก `REST_API_CI /cashin_cancel` แล้วตอบกลับแบบ `generic/cancel-sale-success.json`
 - GET `/api/v1/balances` → เรียก `REST_API_CI /inventory` แล้ว map เป็น `generic/get-inventory-success.json` (type 3 → qty, type 4 → inStacker)
 
 ทุก endpoint ใส่ดีเลย์ 1 วินาทีเพื่อจำลองการประมวลผล
@@ -68,6 +68,8 @@ curl http://localhost:5115/api/v1/status
 
 # ยกเลิกออเดอร์
 curl -X PATCH http://localhost:5115/api/v1/cancel/sale_123
+# หรือหากไม่ระบุ id ก็ได้
+curl -X PATCH http://localhost:5115/api/v1/cancel/
 ```
 
 ### การ Log
