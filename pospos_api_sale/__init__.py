@@ -490,7 +490,7 @@ def get_status():
 
 @api_v1.patch("/cancel/<string:sale_id>")
 @api_v1.patch("/cancel", defaults={"sale_id": None})
-def cancel_order(sale_id: Optional[str]):
+def cancel_order(sale_id: Optional[str] = None):
     global is_cancelled
     try:
         # Call upstream cancel (side-effect only)
