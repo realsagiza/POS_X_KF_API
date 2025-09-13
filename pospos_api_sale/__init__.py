@@ -60,6 +60,20 @@ last_cashin_received_baht = 0.0
 # Upstream base API (configurable)
 UPSTREAM_BASE = os.getenv("UPSTREAM_BASE", "http://192.168.1.33:5000")
 
+# Global HTTP timeout (seconds) applied to all outbound API calls.
+# Default is 300 seconds; configurable via HTTP_TIMEOUT_SECONDS environment variable.
+# Infinite/None timeouts are not allowed.
+def _resolve_global_http_timeout():
+    try:
+        raw = os.getenv("HTTP_TIMEOUT_SECONDS", "300")
+        val = float(str(raw).strip())
+        # Coerce invalid/zero/negative to default 300
+        return 300.0 if val <= 0 else val
+    except Exception:
+        return 300.0
+
+HTTP_TIMEOUT_SECONDS = _resolve_global_http_timeout()
+
 
 def _load_generic_template(filename: str) -> dict:
     template_path = os.path.join(
@@ -288,7 +302,7 @@ def _call_upstream_cashin(amount_value: float) -> None:
         payload = {"amount": amount_value}
         start_ts = time.time()
         logger.info("Calling upstream /cashin url=%s payload=%s", url, payload)
-        resp = requests.post(url, json=payload)
+        resp = requests.post(url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
         duration_ms = (time.time() - start_ts) * 1000.0
         content_type = resp.headers.get("Content-Type", "")
         try:
@@ -336,7 +350,7 @@ def get_balances():
         shaped = _load_generic_template("get-inventory-success.json")
         data_items = []
         try:
-            resp = requests.get(f"{UPSTREAM_BASE}/inventory")
+            resp = requests.get(f"{UPSTREAM_BASE}/inventory", timeout=HTTP_TIMEOUT_SECONDS)
             if resp.ok:
                 upstream = resp.json()
                 data_items = _map_inventory_response(upstream)
@@ -369,14 +383,62 @@ def create_order():
         # mark order start time
         last_order_created_at = time.time()
 
-        # Fire-and-forget upstream /cashin (do not block order response)
-        _submit_cashin_async(order_amount)
+        # Call upstream /cashin synchronously and wait for result
+        url = f"{UPSTREAM_BASE}/cashin"
+        payload = {"amount": order_amount}
+        status_text = "processing"
+        http_status = 200
+        try:
+            logger.info("Calling upstream /cashin (sync) url=%s payload=%s timeout_s=%s", url, payload, HTTP_TIMEOUT_SECONDS)
+            start_ts = time.time()
+            resp = requests.post(url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
+            duration_ms = (time.time() - start_ts) * 1000.0
+            content_type = resp.headers.get("Content-Type", "")
+            try:
+                body_text = resp.text
+                if body_text and len(body_text) > 2000:
+                    body_text = body_text[:2000] + "...(truncated)"
+            except Exception:
+                body_text = "<unreadable>"
+            logger.info(
+                "Upstream /cashin (sync) responded status=%s duration_ms=%.1f content_type=%s body=%s",
+                resp.status_code,
+                duration_ms,
+                content_type,
+                body_text,
+            )
 
-        # Load generic template and adjust amount/status only
+            if resp.ok:
+                try:
+                    resp_json = resp.json()
+                except Exception:
+                    resp_json = None
+                if isinstance(resp_json, dict):
+                    amount_baht = _extract_cashin_amount_baht(resp_json)
+                    if amount_baht > 0:
+                        last_cashin_received_baht = amount_baht
+                        logger.info("Parsed cashin amount from upstream response: %s THB", amount_baht)
+                cashin_ack_received = True
+                status_text = "succeeded"
+                http_status = 200
+            else:
+                logger.warning("Upstream /cashin non-OK status (sync): %s", resp.status_code)
+                status_text = "failed"
+                http_status = 502
+        except requests.Timeout:
+            logger.warning("Upstream /cashin timed out after %ss", HTTP_TIMEOUT_SECONDS)
+            status_text = "timeout"
+            http_status = 504
+        except Exception as exc:
+            logger.exception("Upstream /cashin failed (sync): %s", exc)
+            status_text = "error"
+            http_status = 500
+
+        # Load generic template and adjust amount/status
         response = _load_generic_template("create-sale-success.json")
         response["data"]["amount"] = int(order_amount)
-        response["data"]["status"] = "processing"
-        return jsonify(response)
+        response["data"]["status"] = status_text
+        return jsonify(response), http_status
     except Exception as exc:  # pragma: no cover
         logger.exception("Failed to create sale")
         return jsonify({"success": False, "error": "Failed to create sale", "message": str(exc)}), 500
@@ -389,7 +451,7 @@ def get_status():
         # Fetch latest snapshot via HTTP only
         latest_payload = None
         try:
-            resp = requests.get(f"{UPSTREAM_BASE}/socket/latest")
+            resp = requests.get(f"{UPSTREAM_BASE}/socket/latest", timeout=HTTP_TIMEOUT_SECONDS)
             if resp.ok:
                 latest_payload = resp.json()
         except Exception as exc:
@@ -431,7 +493,7 @@ def cancel_order(sale_id: str):
     try:
         # Call upstream cancel (side-effect only)
         try:
-            _ = requests.get(f"{UPSTREAM_BASE}/cashin_cancel")
+            _ = requests.get(f"{UPSTREAM_BASE}/cashin_cancel", timeout=HTTP_TIMEOUT_SECONDS)
         except Exception as exc:
             logger.warning("Upstream /cashin_cancel failed: %s", exc)
 

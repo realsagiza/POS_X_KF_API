@@ -10,6 +10,7 @@ services:
     environment:
       - PORT=5115
       - UPSTREAM_BASE=http://192.168.1.33:5000
+      - HTTP_TIMEOUT_SECONDS=300
     restart: unless-stopped
 
 

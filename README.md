@@ -3,9 +3,13 @@
 Flask API ที่เรียกใช้ REST_API_CI แล้วตอบกลับทรง Generic JSON พร้อม Docker
 
 ### การแมป API
-- POST `/api/v1/order` → ยิง `REST_API_CI /cashin` แบบ async แล้วตอบกลับทรง `generic/create-sale-success.json` โดย
+- POST `/api/v1/order` → ยิง `REST_API_CI /cashin` แบบ synchronous (รอผล) แล้วตอบกลับทรง `generic/create-sale-success.json` โดย
   - `data.amount` = จำนวนเงินที่ client ส่งมาในคำสั่งซื้อ
-  - `data.status` = `processing`
+  - `data.status` =
+    - `succeeded` เมื่อ upstream ตอบ 2xx และ parse ยอดได้ (หรือไม่ได้ก็ถือว่าสำเร็จ)
+    - `failed` เมื่อ upstream ตอบ non-2xx (ส่ง HTTP 502)
+    - `timeout` เมื่อครบเวลา `HTTP_TIMEOUT_SECONDS` (ดีฟอลต์ 300 วินาที, ส่ง HTTP 504)
+    - `error` เมื่อเกิดข้อผิดพลาดอื่น (ส่ง HTTP 500)
 - GET `/api/v1/status` → ตอบทรง `generic/get-by-id-success.json` โดย
   - `data.amount` = ยอดจาก `POST /api/v1/order` (ไม่ใช้ socket)
   - `data.cashin` = ค่าที่ parse ได้จาก response ของ `POST {UPSTREAM_BASE}/cashin` เป็นหลัก โดยคำนวณจากผลรวมของ `Cash` ที่ `type == "1"` ดังนี้
@@ -22,6 +26,8 @@ Flask API ที่เรียกใช้ REST_API_CI แล้วตอบก
 - กำหนดปลายทาง REST_API_CI ด้วย env `UPSTREAM_BASE` (ดีฟอลต์ `http://192.168.1.33:5000` ใน compose)
 - ถ้ารันด้วย Docker บน Windows/Mac แล้ว REST_API_CI อยู่บนเครื่องโฮสต์ แนะนำตั้ง `UPSTREAM_BASE=http://host.docker.internal:5000`
 - พอร์ตดีฟอลต์: `5115`
+- ระยะเวลา timeout ของทุกการเรียก upstream: กำหนดด้วย env `HTTP_TIMEOUT_SECONDS` (ดีฟอลต์ `300` วินาที)
+  - ตั้งค่าเป็น `none`/`infinite`/`inf` หรือค่า `<= 0` เพื่อ "รอไม่จำกัดเวลา" (ไม่แนะนำ)
 
 การทำงานสถานะเป็นแบบ HTTP-only ไม่มีการเชื่อมต่อ WebSocket อีกต่อไป
 
