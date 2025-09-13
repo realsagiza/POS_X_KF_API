@@ -488,6 +488,7 @@ def get_status():
 
 
 @api_v1.patch("/cancel/<string:sale_id>")
+@api_v1.patch("/cancel")
 def cancel_order(sale_id: str):
     global is_cancelled
     try:
